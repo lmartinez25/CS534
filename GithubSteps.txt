@@ -1,0 +1,24 @@
+This document details how to go about creating new Github branches, and how to properly commit and add changes from your branch into main.
+As a rule of thumb, you should never touch main directly, and only make changes to main through Pull Requests.
+Pull Requests will add changes from your branch, into your main branch.
+
+1. Ensure updated files.
+To ensure you have the latest updates from Github onto your local computer, you should type "git pull", or use "git checkout main"
+then "git pull" before making a new branch or making pull requests. This is to ensure that files are synced.
+
+2. Creating branches
+To create a branch, you can use the "New Branch" button in PyCharm. Doing this will create a branch from main, where you can make any changes you want.
+It is advisable to name your branch related to the feature or changes you intend to implement.
+
+3. Committing Code
+Once you are done implementing the changes you want, you can use "git commit", or the "Commit" button in PyCharm.
+After you have committed the changes you want, you can use "git push" or "Commit and Push", or "Push" to upload your changes to Github for others to see.
+
+4. Pull Requests
+After you have committed and pushes your changes, you can now merge them safely into the main branch.
+This can be done on Github.com in the associated Repository by going to the "Pull Requests" tab, then hitting "New Pull Request".
+After this, select the branch you want merge into main. The order should be |base:main <- compare:<NewBranch>|
+
+
+
+
