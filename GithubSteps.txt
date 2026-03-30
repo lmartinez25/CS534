@@ -18,6 +18,12 @@ After you have committed the changes you want, you can use "git push" or "Commit
 After you have committed and pushes your changes, you can now merge them safely into the main branch.
 This can be done on Github.com in the associated Repository by going to the "Pull Requests" tab, then hitting "New Pull Request".
 After this, select the branch you want merge into main. The order should be |base:main <- compare:<NewBranch>|
+After this, you can hit "Create Pull Request" and assign it to someone to review, or ask for it to be reviewed.
+Typically, you should not approve your own Pull Requests, to make sure you don't overwrite anything accidentally, or anything else.
+But for our purposes, it should be fine if you are confident in approving it yourself.
+
+
+If there are any questions about this process, feel free to reach out to Dylan Vo. Thanks.
 
 
 
