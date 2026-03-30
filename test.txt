@@ -1,8 +1,31 @@
 This is a test!
 
-This is also a test!
+And a task list!
 
-I also want to mention that I did not run all our evaluation methods. 
-I did accuracy and AUC/RUC (which we didn't say we were going to use but it was in the code I was looking at from class)
 
-We still  need to run recall, precision and the F1 score. 
+CODING TASKS TO DO:
+
+1. Remove AUC/RUC from code (we did not say we were going to use these)
+
+2. Add recall, precision, and F1 score evaluation methods to code
+
+
+
+CHANGES MADE TO "TASK LIST 2":
+
+1. Made a row for each written section 1 through 6
+
+2. Highlighted the prof recommendations so we make sure to remember to include those
+
+
+
+"TASK LIST 2" TASKS TO DO:
+
+1. Fill in if you can write up Section 4 (preliminary results and discussion)
+
+2. Section 5 is lessons learned. Fill in your name if you will contribute to this task. Should we write who specifically learned whatever they learned or just a general "we learned" section?
+
+3. Dylan, are you doing all of section 3 or do you want to split that into parts?
+
+4. One of the prof's comments was that we make sure all the papers in our references (section 6) are also cited within the text. I checked the ones I picked (1-4), please check yours and if needed incorporate citations into section 2 (see the task called "section 2 cont." and fill in your name if you do the latter)
+
