@@ -46,16 +46,16 @@ def main():
 
     # Step 5: Inspect numerical data
     # check distributions (they are all skewed, not normal or uniform).
-    # do we need to normalize?
     print("Statistics of Numerical data: \n", df.describe())
-    df['tenure'].plot(kind='hist')
-    plt.title('Histogram of Tenure')
-    plt.show()
-    df['MonthlyCharges'].plot(kind='hist')
-    plt.title('Histogram of Monthly Charges')
-    plt.show()
-    df['TotalCharges'].plot(kind='hist')
-    plt.title('Histogram of Total Charges')
+    counts = df['Churn'].value_counts()
+
+    plt.figure(figsize=(6, 6))
+    plt.pie(counts,
+            labels=counts.index,
+            autopct='%1.1f%%',
+            colors=['steelblue', 'tomato'],
+            startangle=90)
+    plt.title('Churn Distribution')
     plt.show()
 
 
