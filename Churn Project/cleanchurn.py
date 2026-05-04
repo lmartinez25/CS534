@@ -4,17 +4,16 @@ import matplotlib.pyplot as plt
 #Clean and Inspect Data
 
 # Step 1: Load and inspect original dataset
-# Dataset starts with 7042 rows, 21 columns.
+# Dataset starts with 7043 rows, 21 columns.
 # Columns include: 3 numerical features (tenure, MonthlyCharges, TotalCharges),
-# 17 categorical and 1 unnecessary (customer id) that we will drop
+# 1 binary numerical (SeniorCitizen, already 0/1 so no encoding needed),
+# 16 categorical and 1 unnecessary (customer id) that we will drop
 df = pd.read_csv("WA_Fn-UseC_-Telco-Customer-Churn.csv")
 pd.set_option('display.max_columns', None)  # ensures all columns show when printing out data
-df.head()
 
 def inspect():
     print("\nData Size: ", df.shape, "\n")
     print("Column Names: ", "\n", df.columns, "\n")
-
 
     # Step 2: Look for null values and incorrect type assignment
     # We find there are no null values. However, TotalCharges which is numerical is shown as string type.
@@ -22,9 +21,9 @@ def inspect():
     # entries that were connected with 11 entries in tenure column that were 0. We replaced the ' '
     # entries with 0 since they mean that customers have not yet paid since they just signed up.
     df.info()
-    df[df['TotalCharges'] == ' ']
-    len(df[df['TotalCharges'] == ' '])
-    len(df[df['tenure'] == 0])
+    print(df.head())
+    print("Rows with blank TotalCharges: ", len(df[df['TotalCharges'] == ' ']))
+    print("Rows with tenure == 0:        ", len(df[df['tenure'] == 0]))
 
 
 # Step 3: Edit data according to our findings
@@ -36,7 +35,8 @@ df['TotalCharges'] = df['TotalCharges'].astype(float)
 def main():
     # Step 4: Inspect categorical data and plot
     # Churn is unbalanced (73% No), Categories have mostly 2 or 3 categories (one has 4)
-    categories = ['gender', 'SeniorCitizen', 'Partner', 'Dependents',
+    # SeniorCitizen is excluded here as it is already binary (0/1)
+    categories = ['gender', 'Partner', 'Dependents',
                   'PhoneService', 'MultipleLines', 'InternetService',
                   'OnlineSecurity', 'OnlineBackup', 'DeviceProtection', 'TechSupport',
                   'StreamingTV', 'StreamingMovies', 'Contract', 'PaperlessBilling',
@@ -46,7 +46,8 @@ def main():
 
     # Step 5: Inspect numerical data
     # check distributions (they are all skewed, not normal or uniform).
-    print("Statistics of Numerical data: \n", df.describe())
+    print("Statistics of Numerical data: \n", df[['SeniorCitizen', 'tenure',
+                                                    'MonthlyCharges', 'TotalCharges']].describe())
     counts = df['Churn'].value_counts()
 
     plt.figure(figsize=(6, 6))
@@ -62,4 +63,3 @@ def main():
 if __name__ == "__main__":
     inspect()
     main()
-
