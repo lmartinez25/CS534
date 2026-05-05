@@ -1,22 +1,15 @@
 from cleanchurn import *  # imports clean data df
 from imblearn.pipeline import Pipeline as ImbPipeline
-from sklearn.model_selection import train_test_split, StratifiedKFold
+from sklearn.model_selection import train_test_split, RandomizedSearchCV, StratifiedKFold
 from imblearn.over_sampling import SMOTE
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
-from sklearn.calibration import CalibratedClassifierCV
 from xgboost import XGBClassifier
 from sklearn.metrics import (accuracy_score, precision_score, recall_score, f1_score,
                              confusion_matrix, roc_curve, roc_auc_score,
                              ConfusionMatrixDisplay, precision_recall_curve)
 from sklearn.preprocessing import StandardScaler
-from optuna.integration import OptunaSearchCV
-from optuna.distributions import IntDistribution, FloatDistribution, CategoricalDistribution
-import optuna
 import numpy as np
-
-# suppress per-trial optuna output — summary still prints after each search
-optuna.logging.set_verbosity(optuna.logging.WARNING)
 
 # stratified folds keep churn ratio consistent across splits
 cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
@@ -25,7 +18,7 @@ cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
 # one hot encoding for attributes
 df['Churn'] = df['Churn'].replace({'Yes': 1, 'No': 0})
 
-# feature engineering — ratio of current vs average monthly charge flags customers
+# feature engineering - ratio of current vs average monthly charge flags customers
 # whose bill has risen relative to their history, a known churn driver
 df['AvgMonthlyCharge'] = df['TotalCharges'] / (df['tenure'] + 1)
 df['ChargeRatio']      = df['MonthlyCharges'] / (df['AvgMonthlyCharge'] + 1)
@@ -83,56 +76,44 @@ xgb_pipe = ImbPipeline([
     ('clf',   XGBClassifier(random_state=1, eval_metric='logloss'))
 ])
 
-# Bayesian optimization via Optuna — learns from each trial and focuses on
-# promising regions, finding better params than random search for the same budget.
-# Distributions replace fixed lists so Optuna can sample continuously where useful.
-rf_param_dist = {
-    'clf__n_estimators':      CategoricalDistribution([200, 300, 500]),
-    'clf__max_depth':         IntDistribution(5, 15),
-    'clf__min_samples_split': IntDistribution(5, 20),
-    'clf__min_samples_leaf':  IntDistribution(2, 8),
-    'clf__max_features':      CategoricalDistribution(['sqrt', 'log2']),
-    'clf__class_weight':      CategoricalDistribution(['balanced']),
+rf_param_grid = {
+    'clf__n_estimators':      [200, 300, 500],
+    'clf__max_depth':         [5, 8, 10, 15],   # removed deep values (20/30) that caused overfitting
+    'clf__min_samples_split': [5, 10, 20],      # shifted up from [2,5,10] — 2 was too aggressive
+    'clf__min_samples_leaf':  [2, 4, 8],        # shifted up from [1,2,4] — 1 was too aggressive
+    'clf__max_features':      ['sqrt', 'log2'],
+    'clf__class_weight':      ['balanced'],     # constrained run confirmed balanced helps
 }
 
-# C and gamma grids expanded downward — previous best hit the bottom edge of
-# the old grid (C=50, gamma=0.01), so the optimum likely sits below it.
-# 'scale' and 'auto' are data-driven gamma defaults that often outperform fixed values.
-svc_param_dist = {
-    'clf__C':      FloatDistribution(0.1, 200, log=True),  # log scale covers low and high C evenly
-    'clf__gamma':  CategoricalDistribution(['scale', 'auto', 0.001, 0.01, 0.05]),
-    'clf__kernel': CategoricalDistribution(['rbf']),
+svc_param_grid = {
+    'clf__C':      [50, 100, 200, 500, 1000, 5000],  # previous best was C=100 (edge of grid), expanding up
+    'clf__gamma':  [0.01, 0.05, 0.1, 0.5, 1.0],     # previous best was gamma=0.1 (edge of grid), expanding up
+    'clf__kernel': ['rbf'],                           # rbf consistently won, drop sigmoid
 }
 
-# learning rate grid extended down and estimator ceiling raised to match —
-# slower learners need more trees to compensate, previous grid didn't explore this
-xgb_param_dist = {
-    'clf__n_estimators':     IntDistribution(200, 800),
-    'clf__max_depth':        IntDistribution(3, 7),
-    'clf__learning_rate':    FloatDistribution(0.005, 0.05, log=True),
-    'clf__subsample':        FloatDistribution(0.6, 1.0),
-    'clf__colsample_bytree': FloatDistribution(0.6, 1.0),
-    'clf__gamma':            FloatDistribution(0, 1),
-    'clf__reg_alpha':        FloatDistribution(0, 1),
-    'clf__reg_lambda':       FloatDistribution(1, 2),
-    'clf__scale_pos_weight': CategoricalDistribution([1, imbalance_ratio]),
+xgb_param_grid = {
+    'clf__n_estimators':     [100, 200, 300],
+    'clf__max_depth':        [3, 4, 5, 6, 7],
+    'clf__learning_rate':    [0.01, 0.05, 0.1, 0.2],
+    'clf__subsample':        [0.6, 0.8, 1.0],
+    'clf__colsample_bytree': [0.6, 0.8, 1.0],
+    'clf__gamma':            [0, 0.1, 0.5, 1],
+    'clf__reg_alpha':        [0, 0.1, 1],
+    'clf__reg_lambda':       [1, 1.5, 2],
+    'clf__scale_pos_weight': [1, imbalance_ratio],
 }
 
-# scoring='recall' — missing an actual churner costs more than a false alarm,
-# so we tune toward finding as many churners as possible and adjust threshold after
-search_rf = OptunaSearchCV(
-    rf_pipe, rf_param_dist, n_trials=50,
-    scoring='recall', cv=cv, n_jobs=-1, random_state=42
+search_rf = RandomizedSearchCV(
+    rf_pipe, rf_param_grid, n_iter=30, scoring='f1', cv=cv, n_jobs=-1, random_state=42
 )
-search_svc = OptunaSearchCV(
-    svc_pipe, svc_param_dist, n_trials=30,
-    scoring='recall', cv=cv, n_jobs=-1, random_state=42
+search_svc = RandomizedSearchCV(
+    svc_pipe, svc_param_grid, n_iter=20, scoring='f1', cv=cv, n_jobs=-1, random_state=42
 )
-search_xgb = OptunaSearchCV(
-    xgb_pipe, xgb_param_dist, n_trials=60,  # more trials for the larger XGB space
-    scoring='recall', cv=cv, n_jobs=-1, random_state=42
+search_xgb = RandomizedSearchCV(
+    xgb_pipe, xgb_param_grid, n_iter=40, scoring='f1', cv=cv, n_jobs=-1, random_state=42
 )
 
+# all three searches now fit on raw, unbalanced X_train — pipelines handle the rest
 print('\nTuning Random Forest...')
 search_rf.fit(X_train, y_train)
 clf1 = search_rf.best_estimator_
@@ -140,12 +121,7 @@ print('Best RF params:', search_rf.best_params_)
 
 print('\nTuning SVC...')
 search_svc.fit(X_train, y_train)
-
-# SVC probability estimates from Platt scaling can be poorly calibrated on imbalanced
-# data — isotonic calibration corrects this and improves threshold behavior
-clf2_base = search_svc.best_estimator_
-clf2 = CalibratedClassifierCV(clf2_base, cv=5, method='isotonic')
-clf2.fit(X_train, y_train)
+clf2 = search_svc.best_estimator_
 print('Best SVC params:', search_svc.best_params_)
 
 print('\nTuning XGBoost...')
@@ -173,15 +149,15 @@ print('RF Train F1:', round(f1_score(y_train, train_preds_rf), 4))
 print('RF Test F1: ', round(f1_score(y_test, predictions_rf), 4))
 print_metrics('Random Forest', y_test, predictions_rf)
 
-# SVC - calibrated model predicts on raw X_test
+# SVC - pipeline handles scaling internally, predict on raw X_test
 predictions_svc = clf2.predict(X_test)
 predictions_svc_proba = clf2.predict_proba(X_test)[:, 1]
 print_metrics('SVC', y_test, predictions_svc)
 
-# XGBoost - wider sweep now that recall-tuned model may shift the optimal threshold
+# XGBoost - sweep thresholds 0.30-0.45 to find the best tradeoff
 predictions_xgb_proba = clf3.predict_proba(X_test)[:, 1]
 print('\n-- XGBoost Threshold Sweep --')
-for t in np.arange(0.30, 0.56, 0.05):
+for t in np.arange(0.30, 0.46, 0.05):
     preds_t = (predictions_xgb_proba >= t).astype(int)
     print(f't={t:.2f}  Precision: {precision_score(y_test, preds_t):.4f}  '
           f'Recall: {recall_score(y_test, preds_t):.4f}  '
